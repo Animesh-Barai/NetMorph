@@ -1,0 +1,33 @@
+# NetMorph Proxy Platform
+# .gitignore - GOLD Release
+
+# Exclude ALL markdown documentation as requested
+*.md
+**/*.md
+.planning/
+
+# Environment and Credentials
+.env
+.venv/
+venv/
+env/
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# Data Persistence (Local-First only)
+*.db
+*.sqlite
+config.json
+
+# Node.js
+node_modules/
+dist/
+build/
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
