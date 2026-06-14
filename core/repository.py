@@ -43,6 +43,20 @@ class RulesRepository:
             await db.execute("DELETE FROM rules WHERE id = ?", (rule_id,))
             await db.commit()
 
+    async def toggle_rule(self, rule_id: str) -> Optional[bool]:
+        """Toggle the active status of a rule and return its new status."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT is_active FROM rules WHERE id = ?", (rule_id,)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return None
+                new_status = 0 if row["is_active"] else 1
+            
+            await db.execute("UPDATE rules SET is_active = ? WHERE id = ?", (new_status, rule_id))
+            await db.commit()
+            return bool(new_status)
+
     async def get_all_active_rules(self) -> List[Rule]:
         """Retrieve only active rules from the active workspace."""
         # This will be used by the proxy; it should only load rules from active workspaces
@@ -196,6 +210,7 @@ class TrafficRepository:
                     log_item = dict(row)
                     log_item["request_headers"] = json.loads(row["request_headers"] or "{}")
                     log_item["response_headers"] = json.loads(row["response_headers"] or "{}")
+                    log_item["type"] = log_item.get("content_type")
                     logs.append(log_item)
         return logs
 

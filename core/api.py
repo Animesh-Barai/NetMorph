@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -15,12 +16,13 @@ from core.settings import SystemSettings, load_settings, save_settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("NetMorph-API")
 
-app = FastAPI(title="NetMorph Control API")
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """Initialize database on startup."""
     await database.init_db()
+    yield
+
+app = FastAPI(title="NetMorph Control API", lifespan=lifespan)
 
 # Add CORS for local development
 app.add_middleware(
@@ -119,13 +121,10 @@ async def delete_rule(rule_id: str):
 
 @app.post("/rules/{rule_id}/toggle")
 async def toggle_rule(rule_id: str):
-    rules = await repo.list_rules()
-    rule = next((r for r in rules if r.id == rule_id), None)
-    if not rule:
+    new_status = await repo.toggle_rule(rule_id)
+    if new_status is None:
         raise HTTPException(status_code=404, detail="Rule not found")
-    rule.is_active = not rule.is_active
-    await repo.add_rule(rule)
-    return {"status": "ok", "is_active": rule.is_active}
+    return {"status": "ok", "is_active": new_status}
 
 @app.get("/logs")
 async def get_logs(

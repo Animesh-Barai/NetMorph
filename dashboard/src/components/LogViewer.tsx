@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface LogEntry {
@@ -72,7 +71,7 @@ const LogViewer: React.FC = () => {
           <TableBody>
             {logs.length === 0 ? (
               <TableRow className="border-none group">
-                <TableCell colSpan={5} className="h-64 text-center text-muted-foreground/20 font-mono text-xs italic">
+                <TableCell colSpan={6} className="h-64 text-center text-muted-foreground/20 font-mono text-xs italic">
                   NO TRAFFIC DETECTED. START YOUR PROXY TO BEGIN.
                 </TableCell>
               </TableRow>

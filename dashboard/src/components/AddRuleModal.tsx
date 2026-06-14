@@ -52,7 +52,26 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
   // Sync editData to form
   React.useEffect(() => {
     if (editData && open) {
-      form.reset(editData);
+      const transformedEditData = {
+        ...editData,
+        actions: editData.actions.map((action: any) => {
+          if (action.type === "modify_header") {
+            const backendActions = action.config?.actions || [];
+            const firstAction = backendActions[0] || {};
+            return {
+              ...action,
+              config: {
+                target: action.config?.target || "request",
+                op: firstAction.op || "set",
+                key: firstAction.key || "",
+                value: firstAction.value || ""
+              }
+            };
+          }
+          return action;
+        })
+      };
+      form.reset(transformedEditData);
     } else if (!editData && open) {
       form.reset({
         name: "",
@@ -72,10 +91,33 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
 
   const onSubmit = async (values: RuleFormValues) => {
     try {
+      const transformedValues = {
+        ...values,
+        actions: values.actions.map(action => {
+          if (action.type === "modify_header") {
+            const { target, op, key, value } = action.config;
+            return {
+              ...action,
+              config: {
+                target: target || "request",
+                actions: [
+                  {
+                    op: op || "set",
+                    key: key || "",
+                    value: value || ""
+                  }
+                ]
+              }
+            };
+          }
+          return action;
+        })
+      };
+
       const response = await fetch("http://localhost:8000/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(transformedValues),
       });
 
       if (response.ok) {
@@ -270,6 +312,92 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                             </FormItem>
                           )}
                         />
+                      </div>
+                    )}
+
+                    {actionType === "modify_header" && (
+                      <div className="grid grid-cols-4 gap-2">
+                        <FormField
+                          control={form.control as any}
+                          name={`actions.${index}.config.target` as any}
+                          render={({ field }: { field: any }) => (
+                            <FormItem>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value || "request"}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-10 text-xs">
+                                    <SelectValue placeholder="Target" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="request">REQUEST</SelectItem>
+                                  <SelectItem value="response">RESPONSE</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control as any}
+                          name={`actions.${index}.config.op` as any}
+                          render={({ field }: { field: any }) => (
+                            <FormItem>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value || "set"}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-10 text-xs">
+                                    <SelectValue placeholder="Operation" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="set">SET / ADD</SelectItem>
+                                  <SelectItem value="remove">REMOVE</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control as any}
+                          name={`actions.${index}.config.key` as any}
+                          render={({ field }: { field: any }) => (
+                            <FormItem className={form.watch(`actions.${index}.config.op`) === "remove" ? "col-span-2" : "col-span-1"}>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  value={field.value || ""}
+                                  placeholder="Header Name" 
+                                  className="font-mono text-xs"
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        {form.watch(`actions.${index}.config.op`) !== "remove" && (
+                          <FormField
+                            control={form.control as any}
+                            name={`actions.${index}.config.value` as any}
+                            render={({ field }: { field: any }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input 
+                                    {...field} 
+                                    value={field.value || ""}
+                                    placeholder="Value" 
+                                    className="font-mono text-xs"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        )}
                       </div>
                     )}
                   </div>

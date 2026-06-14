@@ -149,11 +149,11 @@ const HistoryPage: React.FC = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-20 text-muted-foreground animate-pulse">Analyzing traffic store...</TableCell>
+                <TableCell colSpan={6} className="text-center py-20 text-muted-foreground animate-pulse">Analyzing traffic store...</TableCell>
               </TableRow>
             ) : logs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-20 text-muted-foreground">No historical records found for current filters</TableCell>
+                <TableCell colSpan={6} className="text-center py-20 text-muted-foreground">No historical records found for current filters</TableCell>
               </TableRow>
             ) : (
               logs.map((log) => (

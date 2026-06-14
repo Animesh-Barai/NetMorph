@@ -1,6 +1,7 @@
-﻿import asyncio
+import asyncio
 import json
 import logging
+from typing import Dict, Any
 from mitmproxy import http
 from .models import Rule, ActionType, Action
 
@@ -13,25 +14,41 @@ class RuleEngine:
         # Thread-safe / async-safe shared store for script access
         self.store: Dict[str, Any] = {}
 
-    async def apply_actions(self, flow: http.HTTPFlow, rule: Rule):
-        """Apply all actions defined in a rule to the flow."""
-        # 1. Rule-wide delay
-        if rule.delay:
+    async def apply_actions(self, flow: http.HTTPFlow, rule: Rule, phase: str = "request"):
+        """Apply all actions defined in a rule to the flow, filtered by phase."""
+        # 1. Rule-wide delay (only apply in request phase)
+        if phase == "request" and rule.delay:
             await asyncio.sleep(rule.delay / 1000)
 
         for action in rule.actions:
-            # 2. Action-specific delay
-            if action.delay:
-                await asyncio.sleep(action.delay / 1000)
-
-            if action.type == ActionType.REDIRECT:
-                self.apply_redirect(flow, action.config)
-            elif action.type == ActionType.MODIFY_HEADER:
-                self.apply_header_mod(flow, action.config)
-            elif action.type == ActionType.MOCK_RESPONSE:
-                self.apply_mock(flow, action.config)
-            elif action.type == ActionType.PYTHON_SCRIPT:
-                await self.apply_script(flow, action.config)
+            if phase == "request":
+                # Actions that run in request phase
+                if action.type == ActionType.REDIRECT:
+                    if action.delay:
+                        await asyncio.sleep(action.delay / 1000)
+                    self.apply_redirect(flow, action.config)
+                elif action.type == ActionType.MOCK_RESPONSE:
+                    if action.delay:
+                        await asyncio.sleep(action.delay / 1000)
+                    self.apply_mock(flow, action.config)
+                elif action.type == ActionType.MODIFY_HEADER and action.config.get("target", "request") == "request":
+                    if action.delay:
+                        await asyncio.sleep(action.delay / 1000)
+                    self.apply_header_mod(flow, action.config)
+                elif action.type == ActionType.PYTHON_SCRIPT:
+                    if action.delay:
+                        await asyncio.sleep(action.delay / 1000)
+                    await self.apply_script(flow, action.config, phase="request")
+            elif phase == "response":
+                # Actions that run in response phase
+                if action.type == ActionType.MODIFY_HEADER and action.config.get("target") == "response":
+                    if action.delay:
+                        await asyncio.sleep(action.delay / 1000)
+                    self.apply_header_mod(flow, action.config)
+                elif action.type == ActionType.PYTHON_SCRIPT:
+                    if action.delay:
+                        await asyncio.sleep(action.delay / 1000)
+                    await self.apply_script(flow, action.config, phase="response")
 
     def apply_redirect(self, flow: http.HTTPFlow, config: dict):
         """Redirect the request to a different host/port/scheme."""
@@ -58,7 +75,7 @@ class RuleEngine:
         """Modify headers in request or response."""
         is_request = config.get("target", "request") == "request"
         headers = flow.request.headers if is_request else flow.response.headers
-        if not headers:
+        if headers is None:
             return
 
         actions = config.get("actions", [])
@@ -91,7 +108,7 @@ class RuleEngine:
             headers
         )
 
-    async def apply_script(self, flow: http.HTTPFlow, config: dict):
+    async def apply_script(self, flow: http.HTTPFlow, config: dict, phase: str = "request"):
         """Execute a programmable logic hook with isolation."""
         script_code = config.get("code")
         if not script_code:
@@ -101,7 +118,8 @@ class RuleEngine:
             "flow": flow,
             "store": self.store,
             "log": lambda msg: logger.info(f"[SCRIPT] {msg}"),
-            "ActionType": ActionType # Allow script to trigger other actions if needed
+            "ActionType": ActionType, # Allow script to trigger other actions if needed
+            "phase": phase
         }
         
         try:

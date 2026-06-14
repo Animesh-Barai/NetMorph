@@ -1,5 +1,5 @@
 import React from "react";
-import Editor, { EditorProps, loader } from "@monaco-editor/react";
+import Editor, { EditorProps } from "@monaco-editor/react";
 
 // Configure monaco to load from local node_modules if needed, 
 // but by default @monaco-editor/react uses a CDN for fast setup.

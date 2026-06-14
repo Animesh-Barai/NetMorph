@@ -27,6 +27,9 @@ export const validateActionConfig = (type: string, config: any) => {
   if (type === "mock_response") {
     return !!config.status;
   }
+  if (type === "modify_header") {
+    return !!config.key;
+  }
   return true;
 };
 

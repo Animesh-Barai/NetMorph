@@ -50,15 +50,26 @@ class AsyncNetMorph:
         rule = self.matcher.match(url)
         
         if rule:
-            await self.engine.apply_actions(flow, rule)
+            setattr(flow, "netmorph_rule", rule)
+            setattr(flow, "netmorph_rule_id", rule.id)
+            await self.engine.apply_actions(flow, rule, phase="request")
         
         overhead = (time.perf_counter() - start_time) * 1000 # in ms
         setattr(flow, "netmorph_overhead", overhead)
             
-        await self.push_log(flow, "request")
+        asyncio.create_task(self.push_log(flow, "request"))
 
     async def response(self, flow: http.HTTPFlow) -> None:
-        await self.push_log(flow, "response")
+        rule = getattr(flow, "netmorph_rule", None)
+        if rule:
+            start_time = time.perf_counter()
+            await self.engine.apply_actions(flow, rule, phase="response")
+            
+            prev_overhead = getattr(flow, "netmorph_overhead", 0)
+            overhead = prev_overhead + (time.perf_counter() - start_time) * 1000
+            setattr(flow, "netmorph_overhead", overhead)
+            
+        asyncio.create_task(self.push_log(flow, "response"))
 
     async def push_log(self, flow: http.HTTPFlow, stage: str):
         """Send log entry to the FastAPI control server with metadata."""
