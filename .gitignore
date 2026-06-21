@@ -4,6 +4,7 @@
 # Exclude ALL markdown documentation as requested
 *.md
 **/*.md
+!README.md
 .planning/
 
 # Environment and Credentials
