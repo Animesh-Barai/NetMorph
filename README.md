@@ -14,37 +14,38 @@ The following diagram illustrates how NetMorph intercepts traffic, executes prog
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Client as Client (Browser/App)
-    participant Proxy as NetMorph Proxy (mitmproxy Addon)
-    participant Engine as Rule Engine (Python Core)
-    participant API as FastAPI Control Server
-    participant DB as SQLite DB (rules.db)
-    participant UI as React Dashboard UI
+    actor Client
+    participant Proxy as Proxy Engine
+    participant Engine as Rule Engine
+    participant Web as Internet
+    participant API as FastAPI Server
+    participant DB as SQLite DB
+    participant UI as Dashboard UI
 
     Note over Proxy: Request Hook
     Client->>Proxy: HTTP/HTTPS Request
-    Proxy->>Proxy: _reload_rules() (Check DB file mtime)
-    Proxy->>Engine: match(URL) & apply_actions(flow, rule, phase="request")
+    Proxy->>Proxy: Check DB mtime (Reload if changed)
+    Proxy->>Engine: Match & Apply Actions (Request)
     opt Redirect / Mock Action
         Engine-->>Proxy: Set flow.response directly
     end
-    Proxy-->>API: push_log(flow, "request") [Async Background Task]
+    Proxy-->>API: push_log("request") [Async]
     activate API
-    API-->>DB: add_log() (Persist to traffic_logs)
-    API-->>UI: Broadcast log over WebSockets
+    API-->>DB: add_log() (Persist Request)
+    API-->>UI: WS Broadcast
     deactivate API
 
     opt No Mock Response
-        Proxy->>Internet: Forward Request to Upstream
-        Internet-->>Proxy: Upstream Server Response
+        Proxy->>Web: Forward Request
+        Web-->>Proxy: Server Response
     end
 
     Note over Proxy: Response Hook
-    Proxy->>Engine: apply_actions(flow, rule, phase="response") (e.g. modify response headers)
-    Proxy-->>API: push_log(flow, "response") [Async Background Task]
+    Proxy->>Engine: Apply Actions (Response)
+    Proxy-->>API: push_log("response") [Async]
     activate API
-    API-->>DB: add_log() (Persist response details & status)
-    API-->>UI: Broadcast response log over WebSockets
+    API-->>DB: add_log() (Persist Response)
+    API-->>UI: WS Broadcast
     deactivate API
     Proxy->>Client: Send Final Response
 ```
