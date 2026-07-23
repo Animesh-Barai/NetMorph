@@ -27,21 +27,31 @@ import {
 import { Button } from "@/components/ui/button";
 import { RuleFormSchema, type RuleFormValues } from "@/lib/schemas";
 import CodeEditor from "./ui/CodeEditor";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, ShieldCheck } from "lucide-react";
+import { useToast } from "./ui/ToastContainer";
 
 interface AddRuleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   editData?: any;
+  prefillPattern?: string;
 }
 
-const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSuccess, editData }) => {
+const AddRuleModal: React.FC<AddRuleModalProps> = ({ 
+  open, 
+  onOpenChange, 
+  onSuccess, 
+  editData,
+  prefillPattern 
+}) => {
+  const { addToast } = useToast();
+
   const form = useForm<RuleFormValues>({
     resolver: zodResolver(RuleFormSchema) as any,
     defaultValues: {
       name: "",
-      match_type: "exact",
+      match_type: "contains",
       pattern: "",
       is_active: true,
       delay: 0,
@@ -49,7 +59,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
     },
   });
 
-  // Sync editData to form
+  // Sync editData / prefillPattern to form
   React.useEffect(() => {
     if (editData && open) {
       const transformedEditData = {
@@ -72,6 +82,15 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
         })
       };
       form.reset(transformedEditData);
+    } else if (prefillPattern && open && !editData) {
+      form.reset({
+        name: `Rule for ${prefillPattern.split("/").pop() || "Endpoint"}`,
+        match_type: "contains",
+        pattern: prefillPattern,
+        is_active: true,
+        delay: 0,
+        actions: [{ type: "redirect", config: { to: "" }, delay: 0 }],
+      });
     } else if (!editData && open) {
       form.reset({
         name: "",
@@ -82,7 +101,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
         actions: [{ type: "redirect", config: { to: "" }, delay: 0 }],
       });
     }
-  }, [editData, open, form]);
+  }, [editData, prefillPattern, open, form]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -121,21 +140,30 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
       });
 
       if (response.ok) {
+        addToast(
+          editData ? "Rule Updated" : "Rule Deployed",
+          `Rule "${values.name}" successfully deployed to proxy engine`,
+          "success"
+        );
         onOpenChange(false);
         form.reset();
         onSuccess();
+      } else {
+        addToast("Failed to Deploy Rule", "Server returned validation error", "error");
       }
     } catch (error) {
       console.error("Failed to save rule:", error);
+      addToast("Network Error", "Failed to connect to backend proxy engine", "error");
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-surface-lowest border-none shadow-2xl glass ambient-shadow">
-        <DialogHeader>
-          <DialogTitle className="font-display text-2xl font-bold tracking-tight uppercase">
-            {editData ? "Update Command Rule" : "Configure Command Rule"}
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-surface-low border border-surface-high/60 shadow-2xl glass-panel animate-in fade-in zoom-in-95 duration-200">
+        <DialogHeader className="border-b border-surface-high/40 pb-4">
+          <DialogTitle className="font-display text-xl font-bold tracking-tight uppercase flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            {editData ? "Update Interceptor Rule" : "Configure Interceptor Rule"}
           </DialogTitle>
         </DialogHeader>
 
@@ -150,7 +178,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                   <FormItem>
                     <FormLabel className="text-label-sm text-muted-foreground">Rule Name</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="e.g. Redirect Auth API" />
+                      <Input {...field} placeholder="e.g. Redirect Auth API" className="bg-surface-base border-surface-high/50 font-mono text-xs" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -164,11 +192,11 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                     <FormLabel className="text-label-sm text-muted-foreground">Match Strategy</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-surface-base border-surface-high/50 text-xs font-mono">
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-surface-high border-surface-base text-xs font-mono">
                         <SelectItem value="exact">EXACT URL</SelectItem>
                         <SelectItem value="contains">CONTAINS</SelectItem>
                         <SelectItem value="regex">REGEX PATTERN</SelectItem>
@@ -185,9 +213,9 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
               name="pattern"
               render={({ field }: { field: any }) => (
                 <FormItem>
-                  <FormLabel className="text-label-sm text-muted-foreground">Pattern / URL Target</FormLabel>
+                  <FormLabel className="text-label-sm text-muted-foreground">Pattern / Target URL</FormLabel>
                   <FormControl>
-                    <Input {...field} className="font-mono tracking-widest" placeholder="https://api.example.com/*" />
+                    <Input {...field} className="font-mono text-xs tracking-wider bg-surface-base border-surface-high/50 text-primary" placeholder="https://api.example.com/*" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -195,17 +223,17 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
             />
 
             {/* Actions Section */}
-            <div className="space-y-4 pt-4 border-t border-surface-high/30">
+            <div className="space-y-4 pt-4 border-t border-surface-high/40">
               <div className="flex items-center justify-between">
-                <h3 className="text-[10px] uppercase font-mono tracking-widest text-primary font-bold">Signal Actions</h3>
+                <h3 className="text-xs uppercase font-mono tracking-widest text-primary font-bold">Signal Actions</h3>
                 <Button 
                   type="button" 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => append({ type: "redirect", config: { to: "" }, delay: 0 })}
-                  className="h-8 hover:bg-surface-high text-primary"
+                  className="h-8 text-xs font-mono text-primary hover:bg-primary/10"
                 >
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Action
+                  <PlusCircle className="mr-1.5 h-4 w-4" /> Add Action
                 </Button>
               </div>
 
@@ -213,7 +241,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                 const actionType = form.watch(`actions.${index}.type`);
                 
                 return (
-                  <div key={field.id} className="p-4 bg-surface-base/50 rounded-sm space-y-4 group relative border-l-2 border-primary/20 hover:border-primary transition-all">
+                  <div key={field.id} className="p-4 bg-surface-base/60 rounded-md space-y-4 group relative border-l-2 border-primary/40 hover:border-primary transition-all border border-surface-high/30 shadow-md">
                     <div className="flex items-center gap-4">
                       <FormField
                         control={form.control as any}
@@ -222,13 +250,13 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                           <FormItem className="flex-1">
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger className="h-10 text-xs font-bold text-primary">
+                                <SelectTrigger className="h-10 text-xs font-mono font-bold text-primary bg-surface-lowest border-surface-high/40">
                                   <SelectValue />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent>
-                                <SelectItem value="redirect">REDIRECT</SelectItem>
-                                <SelectItem value="modify_header">HEADER CHECK</SelectItem>
+                              <SelectContent className="bg-surface-high border-surface-base text-xs font-mono">
+                                <SelectItem value="redirect">REDIRECT URL</SelectItem>
+                                <SelectItem value="modify_header">HEADER MOD</SelectItem>
                                 <SelectItem value="mock_response">STATIC MOCK</SelectItem>
                                 <SelectItem value="python_script">PYTHON SCRIPT</SelectItem>
                               </SelectContent>
@@ -241,7 +269,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                         variant="ghost" 
                         size="icon" 
                         onClick={() => remove(index)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="h-9 w-9 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -255,7 +283,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                         render={({ field }: { field: any }) => (
                           <FormItem>
                             <FormControl>
-                              <Input {...field} value={field.value || ""} className="font-mono tracking-widest" placeholder="Redirection Target (URL)" />
+                              <Input {...field} value={field.value || ""} className="font-mono text-xs tracking-wider bg-surface-lowest border-surface-high/40 text-foreground" placeholder="Redirect Target (URL)" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -271,7 +299,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                           <FormItem>
                             <FormControl>
                               <CodeEditor 
-                                height="200px"
+                                height="180px"
                                 value={field.value || "# NetMorph Script Hook\n\nlog(flow.request.url)\n"}
                                 onChange={field.onChange}
                               />
@@ -294,7 +322,8 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                                   {...field} 
                                   type="number" 
                                   value={field.value || 200}
-                                  placeholder="Status (e.g. 200)"
+                                  placeholder="Status (200)"
+                                  className="font-mono text-xs bg-surface-lowest border-surface-high/40"
                                   onChange={(e) => field.onChange(parseInt(e.target.value))}
                                 />
                               </FormControl>
@@ -307,7 +336,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                           render={({ field }: { field: any }) => (
                             <FormItem className="col-span-3">
                               <FormControl>
-                                <Input {...field} value={field.value || ""} className="font-mono text-primary" placeholder='Mock Body (e.g. {"status": "ok"})' />
+                                <Input {...field} value={field.value || ""} className="font-mono text-xs bg-surface-lowest border-surface-high/40 text-primary" placeholder='Mock Body (e.g. {"status": "ok"})' />
                               </FormControl>
                             </FormItem>
                           )}
@@ -327,11 +356,11 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                                 value={field.value || "request"}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="h-10 text-xs">
+                                  <SelectTrigger className="h-9 text-xs font-mono bg-surface-lowest border-surface-high/40">
                                     <SelectValue placeholder="Target" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-surface-high border-surface-base text-xs font-mono">
                                   <SelectItem value="request">REQUEST</SelectItem>
                                   <SelectItem value="response">RESPONSE</SelectItem>
                                 </SelectContent>
@@ -350,11 +379,11 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                                 value={field.value || "set"}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="h-10 text-xs">
+                                  <SelectTrigger className="h-9 text-xs font-mono bg-surface-lowest border-surface-high/40">
                                     <SelectValue placeholder="Operation" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="bg-surface-high border-surface-base text-xs font-mono">
                                   <SelectItem value="set">SET / ADD</SelectItem>
                                   <SelectItem value="remove">REMOVE</SelectItem>
                                 </SelectContent>
@@ -373,7 +402,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                                   {...field} 
                                   value={field.value || ""}
                                   placeholder="Header Name" 
-                                  className="font-mono text-xs"
+                                  className="font-mono text-xs bg-surface-lowest border-surface-high/40"
                                 />
                               </FormControl>
                             </FormItem>
@@ -391,7 +420,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
                                     {...field} 
                                     value={field.value || ""}
                                     placeholder="Value" 
-                                    className="font-mono text-xs"
+                                    className="font-mono text-xs bg-surface-lowest border-surface-high/40"
                                   />
                                 </FormControl>
                               </FormItem>
@@ -405,10 +434,12 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ open, onOpenChange, onSucce
               })}
             </div>
 
-            <DialogFooter className="pt-6 border-t border-surface-high/30">
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit">
-                 DEPLOY COMMAND
+            <DialogFooter className="pt-6 border-t border-surface-high/40 flex items-center justify-end gap-3">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="text-xs font-mono">
+                Cancel
+              </Button>
+              <Button type="submit" className="text-xs font-mono font-bold tracking-wider bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+                DEPLOY COMMAND
               </Button>
             </DialogFooter>
           </form>
