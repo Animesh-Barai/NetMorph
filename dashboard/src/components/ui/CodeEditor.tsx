@@ -1,10 +1,9 @@
 import React from "react";
 import Editor, { EditorProps } from "@monaco-editor/react";
 
-// Configure monaco to load from local node_modules if needed, 
-// but by default @monaco-editor/react uses a CDN for fast setup.
 interface CodeEditorProps extends EditorProps {
   containerClassName?: string;
+  readOnly?: boolean;
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ 
@@ -12,7 +11,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   language = "python", 
   theme = "vs-dark",
   options = {},
-  containerClassName,
+  containerClassName = "",
+  readOnly = false,
   ...props 
 }) => {
   const defaultOptions: EditorProps["options"] = {
@@ -22,14 +22,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     lineNumbers: "on",
     roundedSelection: true,
     scrollBeyondLastLine: false,
-    readOnly: false,
+    readOnly: readOnly,
     automaticLayout: true,
     padding: { top: 16, bottom: 16 },
     ...options
   };
 
   return (
-    <div className={`rounded-sm overflow-hidden border border-surface-high/50 bg-[#1e1e1e] ${containerClassName}`}>
+    <div className={`rounded-md overflow-hidden border border-surface-high/50 bg-[#1e1e1e] ${containerClassName}`}>
       <Editor
         height={height}
         language={language}
