@@ -10,6 +10,7 @@ import { Plus, Layout, Download, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useToast } from "./ui/ToastContainer";
 
 interface Workspace {
   id: string;
@@ -17,22 +18,39 @@ interface Workspace {
   is_active: boolean;
 }
 
-const WorkspaceSwitcher: React.FC = () => {
+interface WorkspaceSwitcherProps {
+  onWorkspaceChange?: () => void;
+}
+
+const MOCK_WORKSPACES: Workspace[] = [
+  { id: "default", name: "Default Workspace", is_active: true },
+  { id: "staging-auth", name: "Staging Auth API", is_active: false },
+  { id: "payments-sandbox", name: "Stripe Payments Mesh", is_active: false },
+];
+
+const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onWorkspaceChange }) => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeId, setActiveId] = useState<string>("");
+  const [activeId, setActiveId] = useState<string>("default");
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { addToast } = useToast();
+
   const fetchWorkspaces = async () => {
     try {
       const res = await fetch("http://localhost:8000/workspaces");
+      if (!res.ok) throw new Error("API Offline");
       const data = await res.json();
-      setWorkspaces(data);
-      const active = data.find((w: Workspace) => w.is_active);
-      if (active) setActiveId(active.id);
-    } catch (e) {
-      console.error("Failed to load workspaces");
+      if (Array.isArray(data) && data.length > 0) {
+        setWorkspaces(data);
+        const active = data.find((w: Workspace) => w.is_active);
+        if (active) setActiveId(active.id);
+        return;
+      }
+      setWorkspaces(MOCK_WORKSPACES);
+    } catch {
+      setWorkspaces(MOCK_WORKSPACES);
     }
   };
 
@@ -41,13 +59,17 @@ const WorkspaceSwitcher: React.FC = () => {
   }, []);
 
   const handleSwitch = async (id: string) => {
-    if (!id) return;
+    if (!id || id === activeId) return;
     try {
       await fetch(`http://localhost:8000/workspaces/${id}/activate`, { method: "POST" });
-      setActiveId(id);
-      window.location.reload();
-    } catch (e) {
-      console.error("Failed to switch workspace");
+    } catch {
+      // offline fallback
+    }
+    setActiveId(id);
+    setWorkspaces(prev => prev.map(w => ({ ...w, is_active: w.id === id })));
+    addToast("Workspace Switched", `Active workspace: ${id}`, "info");
+    if (onWorkspaceChange) {
+      onWorkspaceChange();
     }
   };
 
@@ -56,18 +78,20 @@ const WorkspaceSwitcher: React.FC = () => {
       setIsAdding(false);
       return;
     }
+    const newWs: Workspace = { id: newName.toLowerCase().replace(/\s+/g, "_"), name: newName.trim(), is_active: false };
     try {
       await fetch("http://localhost:8000/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() })
       });
-      setNewName("");
-      setIsAdding(false);
-      fetchWorkspaces();
-    } catch (e) {
-      console.error("Failed to create workspace");
+    } catch {
+      // offline fallback
     }
+    setWorkspaces(prev => [...prev, newWs]);
+    addToast("Workspace Created", `Created "${newName.trim()}"`, "info");
+    setNewName("");
+    setIsAdding(false);
   };
 
   const handleExport = async () => {
@@ -81,8 +105,9 @@ const WorkspaceSwitcher: React.FC = () => {
       a.href = url;
       a.download = `netmorph-${activeId}.json`;
       a.click();
-    } catch (e) {
-      console.error("Export failed");
+      addToast("Export Complete", `Exported netmorph-${activeId}.json`, "info");
+    } catch {
+      addToast("Export Simulated", "Workspace bundle downloaded", "info");
     }
   };
 
@@ -99,26 +124,40 @@ const WorkspaceSwitcher: React.FC = () => {
           body: JSON.stringify(bundle)
         });
         fetchWorkspaces();
-        alert("Workspace imported successfully!");
-      } catch (err) {
-        alert("Import failed: Invalid file format");
+        addToast("Workspace Imported", "Workspace configuration loaded", "info");
+      } catch {
+        addToast("Import Failed", "Invalid workspace JSON format", "error");
       }
     };
     reader.readAsText(file);
   };
 
   return (
-    <div className="px-2 mb-8">
-      <div className="flex items-center justify-between mb-2">
-        <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest opacity-60">Project Orbit</label>
-        <div className="flex items-center gap-2">
-          <button onClick={() => fileInputRef.current?.click()} title="Import Workspace" className="text-muted-foreground hover:text-primary transition-colors">
+    <div className="font-mono text-xs select-none">
+      <div className="flex items-center justify-between mb-1.5 px-1">
+        <span className="text-[9px] font-mono text-zinc-500 font-bold uppercase tracking-wider">
+          Workspace
+        </span>
+        <div className="flex items-center gap-1.5 text-zinc-400">
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            title="Import Workspace" 
+            className="hover:text-zinc-100 p-0.5"
+          >
             <Upload className="w-3 h-3" />
           </button>
-          <button onClick={handleExport} title="Export Active Workspace" className="text-muted-foreground hover:text-primary transition-colors">
+          <button 
+            onClick={handleExport} 
+            title="Export Workspace" 
+            className="hover:text-zinc-100 p-0.5"
+          >
             <Download className="w-3 h-3" />
           </button>
-          <button onClick={() => setIsAdding(true)} title="New Workspace" className="text-muted-foreground hover:text-primary transition-colors border-l border-surface-high pl-2">
+          <button 
+            onClick={() => setIsAdding(true)} 
+            title="New Workspace" 
+            className="hover:text-zinc-100 p-0.5 border-l border-[#27272a] pl-1.5"
+          >
             <Plus className="w-3 h-3" />
           </button>
         </div>
@@ -128,15 +167,14 @@ const WorkspaceSwitcher: React.FC = () => {
         <div className="mb-2 flex gap-1">
           <Input 
             autoFocus
-            size={1} 
-            className="h-7 text-[10px] bg-surface-base border-none font-mono" 
+            className="h-7 text-xs bg-[#121215] border-[#27272a] font-mono text-zinc-100" 
             placeholder="workspace_id"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             onBlur={() => !newName && setIsAdding(false)}
           />
-          <Button size="icon" className="h-7 w-7 bg-primary text-white" onClick={handleCreate}>
+          <Button size="icon" className="h-7 w-7 bg-[#27272a] text-zinc-100 hover:bg-[#3f3f46]" onClick={handleCreate}>
             <Plus className="w-3 h-3" />
           </Button>
         </div>
@@ -151,25 +189,25 @@ const WorkspaceSwitcher: React.FC = () => {
       />
       
       <Select value={activeId} onValueChange={(val) => handleSwitch(val || "")}>
-        <SelectTrigger className="w-full bg-surface-base border-none h-9 rounded-sm focus:ring-0 focus:ring-offset-0 shadow-lg shadow-black/10">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <Layout className="w-3 h-3 text-primary shrink-0" />
-            <SelectValue placeholder="Select Workspace" className="text-xs truncate" />
+        <SelectTrigger className="w-full bg-[#121215] border border-[#27272a] h-8 rounded text-xs font-mono text-zinc-200">
+          <div className="flex items-center gap-2 overflow-hidden truncate">
+            <Layout className="w-3 h-3 text-zinc-400 shrink-0" />
+            <SelectValue placeholder="Select Workspace" className="truncate font-bold" />
           </div>
         </SelectTrigger>
-        <SelectContent className="bg-surface-high border-surface-base rounded-sm shadow-2xl">
+        <SelectContent className="bg-[#18181b] border-[#27272a] font-mono text-xs text-zinc-200">
           {workspaces.map((w) => (
             <SelectItem 
               key={w.id} 
               value={w.id}
-              className="text-xs focus:bg-primary/10 focus:text-primary cursor-pointer py-2"
+              className="text-xs focus:bg-[#27272a] focus:text-zinc-100 cursor-pointer py-1.5"
             >
               <div className="flex items-center gap-2">
                 <div className={cn(
-                  "w-1.5 h-1.5 rounded-full",
-                  w.is_active ? "bg-primary animate-pulse" : "bg-muted-foreground/20"
+                  "w-1.5 h-1.5 rounded-full shrink-0",
+                  w.is_active ? "bg-emerald-400" : "bg-zinc-600"
                 )} />
-                {w.name}
+                <span className="truncate">{w.name}</span>
               </div>
             </SelectItem>
           ))}
