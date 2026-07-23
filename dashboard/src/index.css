@@ -5,124 +5,135 @@
 @source "./**/*.{js,ts,jsx,tsx}";
 
 @theme {
-  /* Obsidian Lens Core Palette (Stitch MCP) */
-  --color-background: #0e0e0e;
-  --color-foreground: #e7e5e5;
+  /* DevTool Neutral Dark Palette */
+  --color-background: #0c0c0e;
+  --color-foreground: #e4e4e7;
   
-  --color-primary: #d2bbff;
-  --color-primary-foreground: #5200b5;
-  --color-primary-container: #5a00c6;
+  --color-primary: #6366f1;
+  --color-primary-foreground: #ffffff;
+  --color-primary-container: #4f46e5;
   
-  --color-secondary: #211f23;
-  --color-secondary-foreground: #c3bec2;
+  --color-secondary: #18181b;
+  --color-secondary-foreground: #a1a1aa;
   
-  --color-destructive: #ec7c8a;
-  --color-destructive-foreground: #490013;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
   
-  --color-muted: #191a1a;
-  --color-muted-foreground: #acabaa;
+  --color-muted: #18181b;
+  --color-muted-foreground: #71717a;
   
-  --color-accent: #252626;
-  --color-accent-foreground: #e7e5e5;
+  --color-accent: #27272a;
+  --color-accent-foreground: #f4f4f5;
   
-  /* Surface Layers */
-  --color-surface-lowest: #000000;
-  --color-surface-dim: #0e0e0e;
-  --color-surface-low: #131313;
-  --color-surface-base: #191a1a;
-  --color-surface-high: #1f2020;
-  --color-surface-highest: #252626;
-  --color-surface-bright: #2b2c2c;
+  /* DevTool Surface Layers */
+  --color-surface-lowest: #09090b;
+  --color-surface-dim: #0c0c0e;
+  --color-surface-low: #121215;
+  --color-surface-base: #18181b;
+  --color-surface-high: #27272a;
+  --color-surface-highest: #3f3f46;
+  --color-surface-bright: #52525b;
 
-  /* Outline Variants */
-  --color-outline: #767575;
-  --color-outline-variant: #484848;
+  /* DevTool Borders */
+  --color-outline: #27272a;
+  --color-outline-variant: #18181b;
 
-  /* Typography */
-  --font-sans: "Inter", sans-serif;
+  /* Typography - DevTool Monospace & System Sans */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", "Courier New", monospace;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Courier New", monospace;
 
   /* Radii */
-  --radius-lg: 4px;
+  --radius-lg: 6px;
   --radius-md: 4px;
-  --radius-sm: 4px;
-
-  /* Custom Animations */
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
-
-  @keyframes accordion-down {
-    from { height: 0; }
-    to { height: var(--radix-accordion-content-height); }
-  }
-  @keyframes accordion-up {
-    from { height: var(--radix-accordion-content-height); }
-    to { height: 0; }
-  }
+  --radius-sm: 3px;
 }
 
 @layer base {
   :root {
-    --background: #0e0e0e;
-    --foreground: #e7e5e5;
-    --primary: #d2bbff;
-    --primary-foreground: #5200b5;
-    --secondary: #211f23;
-    --secondary-foreground: #c3bec2;
-    --muted: #191a1a;
-    --muted-foreground: #acabaa;
-    --accent: #252626;
-    --accent-foreground: #e7e5e5;
-    --destructive: #ec7c8a;
-    --destructive-foreground: #490013;
-    --border: #484848;
-    --input: #252626;
-    --ring: #d2bbff;
+    --background: #0c0c0e;
+    --foreground: #e4e4e7;
+    --primary: #6366f1;
+    --primary-foreground: #ffffff;
+    --secondary: #18181b;
+    --secondary-foreground: #a1a1aa;
+    --muted: #18181b;
+    --muted-foreground: #71717a;
+    --accent: #27272a;
+    --accent-foreground: #f4f4f5;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #27272a;
+    --input: #18181b;
+    --ring: #6366f1;
+  }
+
+  * {
+    border-color: var(--border);
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-foreground text-sm;
     font-family: var(--font-sans);
+    overflow-x: hidden;
   }
 
-  /* Monospace overrides for code vibes */
   code, pre, .font-mono {
     font-family: var(--font-mono);
   }
 }
 
 @layer utilities {
-  .ghost-border {
-    border: 1px solid color-mix(in srgb, var(--color-outline-variant) 15%, transparent);
+  .devtool-border {
+    border: 1px solid #27272a;
   }
-  .ghost-border-focus {
-    border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
+  .devtool-card {
+    background: #141417;
+    border: 1px solid #27272a;
+    border-radius: 6px;
   }
-  .ambient-shadow {
-    box-shadow: 0 0 40px 0 color-mix(in srgb, var(--color-primary-container) 5%, transparent);
+  .devtool-card-hover {
+    background: #141417;
+    border: 1px solid #27272a;
+    border-radius: 6px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
-  .pulse-gradient {
-    background: linear-gradient(45deg, var(--color-primary), var(--color-primary-container));
+  .devtool-card-hover:hover {
+    border-color: #3f3f46;
+    background: #18181b;
   }
-  .glass {
-    background: color-mix(in srgb, var(--color-primary-container) 15%, transparent);
-    backdrop-filter: blur(16px);
+
+  /* HTTP Method Badges - Readable Size */
+  .badge-get {
+    @apply text-sky-400 bg-sky-950/50 border border-sky-800/50 font-mono font-bold text-xs px-2 py-0.5 rounded;
   }
-  
-  /* Editorial Typography Extentions */
-  .text-display-lg {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
-    letter-spacing: -0.02em;
-    font-weight: 700;
+  .badge-post {
+    @apply text-emerald-400 bg-emerald-950/50 border border-emerald-800/50 font-mono font-bold text-xs px-2 py-0.5 rounded;
   }
-  .text-label-sm {
-    font-size: 0.75rem;
-    line-height: 1rem;
-    letter-spacing: 0.1rem;
-    text-transform: uppercase;
-    font-weight: 600;
+  .badge-put {
+    @apply text-amber-400 bg-amber-950/50 border border-amber-800/50 font-mono font-bold text-xs px-2 py-0.5 rounded;
+  }
+  .badge-delete {
+    @apply text-rose-400 bg-rose-950/50 border border-rose-800/50 font-mono font-bold text-xs px-2 py-0.5 rounded;
+  }
+  .badge-patch {
+    @apply text-indigo-400 bg-indigo-950/50 border border-indigo-800/50 font-mono font-bold text-xs px-2 py-0.5 rounded;
+  }
+
+  /* Custom DevTool Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #09090b;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
   }
 }
 
